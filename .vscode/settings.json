@@ -1,0 +1,21 @@
+{
+    "editor.formatOnSave": false,
+    "editor.tabSize": 2,
+    "python.languageServer": "Microsoft",
+    "python.formatting.autopep8Args": [
+        // セミコロンで改行しないようにする
+        "--ignore",
+        "E70",
+        "--max-line-length",
+        "120",
+    ],
+    "[python]": {
+        "editor.formatOnSave": true,
+    },
+    "[markdown]": {
+        "editor.wordWrap": "on",
+        "editor.quickSuggestions": false,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+    }
+}
