@@ -78,7 +78,7 @@ class Game:
 
     def play_game(self):
         # actionは[up, left, down, right, A, B]の6種
-        action_list = [[0, 0, 0, 1, 0, 1], [0, 0, 0, 1, 1, 1]]
+        action_list = [[0, 0, 0, 1, 0, 1], [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 0]]
 
         sess = tf.compat.v1.InteractiveSession()
         s, readout = self.create_network(len(action_list))
