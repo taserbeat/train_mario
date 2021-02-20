@@ -18,7 +18,7 @@ class Game:
         self.env = gym.make('ppaquette/SuperMarioBros-1-1-Tiles-v0')
 
     def weight_variable(self, shape):
-        initial = tf.truncated_normal(shape, stddev=0.01)
+        initial = tf.random.truncated_normal(shape, stddev=0.01)
         return tf.Variable(initial)
 
     def bias_variable(self, shape):
@@ -29,10 +29,10 @@ class Game:
         return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding="SAME")
 
     def max_pool_2x2(self, x):
-        return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="SAME")
+        return tf.nn.max_pool2d(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="SAME")
 
     def create_network(self, action_size):
-        s = tf.placeholder("float", [None, 13, 16, 1])
+        s = tf.compat.v1.placeholder("float", [None, 13, 16, 1])
 
         # 1層目
         W_conv1 = self.weight_variable([8, 8, 1, 16])
@@ -78,17 +78,17 @@ class Game:
 
     def play_game(self):
         # actionは[up, left, down, right, A, B]の6種
-        action_list = [[0, 0, 0, 1, 0, 1], [0, 0, 0, 1, 1, 0], [0, 0, 0, 1, 1, 1]]
+        action_list = [[0, 0, 0, 1, 0, 1], [0, 0, 0, 1, 1, 1]]
 
-        sess = tf.InteractiveSession()
+        sess = tf.compat.v1.InteractiveSession()
         s, readout = self.create_network(len(action_list))
-        a = tf.placeholder("float", [None, len(action_list)])
-        y = tf.placeholder("float", [None, 1])
+        a = tf.compat.v1.placeholder("float", [None, len(action_list)])
+        y = tf.compat.v1.placeholder("float", [None, 1])
         readout_action = tf.reduce_sum(tf.multiply(readout, a), reduction_indices=1)
         cost = tf.reduce_mean(tf.square(y - readout_action))
-        train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
+        train_step = tf.compat.v1.train.AdamOptimizer(1e-6).minimize(cost)
 
-        saver = tf.train.Saver()
+        saver = tf.compat.v1.train.Saver()
         sess.run(tf.initialize_all_variables())
         checkpoint = tf.train.get_checkpoint_state("./saved_networks/checkpoints")
         if checkpoint and checkpoint.model_checkpoint_path:
@@ -116,6 +116,7 @@ class Game:
 
                 # 画面のマリオに処理する
                 obs, reward, is_finished, info = self.env.step(action_list[action_index])
+                print("info: {}".format(info))
 
                 # MiniBatch化するように配列に
                 action_array = np.zeros(len(action_list))
@@ -130,7 +131,7 @@ class Game:
                 train_step.run(feed_dict={
                     a: actions, y: rewards, s: images
                 })
-                print("Episode: {0}, Actions: {1}, Rewards: {2}, readout_t: {3}".format(
+                print("Episode: {0}, Actions: {1}, Rewards: {2}, readout_t: {3}\n".format(
                     episode, action_index, rewards, readout_t)
                 )
                 actions, rewards, images = [], [], []
