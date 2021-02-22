@@ -5,6 +5,7 @@ import ppaquette_gym_super_mario
 from gym.monitoring import Monitor
 import random
 import numpy as np
+import sys
 
 
 class Game:
@@ -78,7 +79,12 @@ class Game:
 
     def play_game(self):
         # actionは[up, left, down, right, A, B]の6種
-        action_list = [[0, 0, 0, 1, 0, 1], [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 0]]
+        action_list = [
+            # 右移動
+            [0, 0, 0, 1, 0, 1],
+            [0, 0, 0, 1, 1, 1],
+            [0, 0, 0, 1, 1, 0],
+        ]
 
         sess = tf.compat.v1.InteractiveSession()
         s, readout = self.create_network(len(action_list))
@@ -97,18 +103,20 @@ class Game:
         else:
             print("Could not find old network weights")
 
+        total_max_distance = 0
         for episode in range(self.episode_count):
             self.env.reset()
             total_score = 0
             distance = 0
+            time_limit = sys.maxsize
             is_finished = False
             actions, rewards, images = [], [], []
+            frame_count = 0
             self.eps = max(self.eps - self.eps_decay, self.eps_min)
             while is_finished == False:
                 screen = np.reshape(self.env.tiles, (13, 16, 1))
                 readout_t = readout.eval(feed_dict={s: [screen]})[0]
 
-                print("eps: {0}".format(self.eps))
                 if np.random.random() < self.eps:
                     action_index = random.randint(0, len(action_list) - 1)
                 else:
@@ -116,7 +124,6 @@ class Game:
 
                 # 画面のマリオに処理する
                 obs, reward, is_finished, info = self.env.step(action_list[action_index])
-                print("info: {}".format(info))
 
                 # MiniBatch化するように配列に
                 action_array = np.zeros(len(action_list))
@@ -124,20 +131,56 @@ class Game:
                 actions.append(action_array)
 
                 # 報酬を与える
-                rewards.append([float(info['distance'])])
+                movement_reward = 0  # 移動報酬
+                if info['distance'] > distance:
+                    movement_reward = float(0.1)
+                elif info['distance'] < distance:
+                    movement_reward = float(-0.05)
+                    pass
+                distance = info['distance']
+                total_max_distance = distance if info['distance'] > total_max_distance else total_max_distance
 
+                score_reward = 0  # スコア報酬
+                if info['score'] > total_score:
+                    score_reward = float(0.1)
+                    total_score = info['score']
+                    pass
+
+                time_reward = 0  # 残り時間報酬
+                if info['time'] < time_limit:
+                    time_reward = float(-0.05)
+                    time_limit = info['time']
+
+                composited_reward = movement_reward + score_reward + time_reward
+                rewards.append([composited_reward])
+
+                # 環境
                 images.append(screen)
 
+                # 学習を行う
                 train_step.run(feed_dict={
                     a: actions, y: rewards, s: images
                 })
-                print("Episode: {0}, Actions: {1}, Rewards: {2}, readout_t: {3}\n".format(
-                    episode, action_index, rewards, readout_t)
-                )
+
+                # 情報の出力
+                if frame_count % 60 == 0:
+                    print("Episode: {0}, Actions: {1}, Rewards: {2}, readout_t: {3}".format(
+                        episode, action_index, rewards, readout_t)
+                    )
+                    print("info: {}".format(info))
+                    print("eps: {0}".format(self.eps))
+                    print("total_max_distance: {}\n".format(total_max_distance))
+                    pass
+
                 actions, rewards, images = [], [], []
 
+                frame_count += 1
                 self.env.render()
+                pass
+
+            # エピソードが終了する度に行う処理
             saver.save(sess, 'saved_networks/model-dqn', global_step=episode)
+            frame_count = 0
 
 
 if __name__ == '__main__':
