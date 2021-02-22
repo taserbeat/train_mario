@@ -2,6 +2,7 @@
     "editor.formatOnSave": false,
     "editor.tabSize": 2,
     "python.languageServer": "Microsoft",
+    "python.linting.flake8Enabled": false,
     "python.formatting.autopep8Args": [
         // セミコロンで改行しないようにする
         "--ignore",
@@ -17,5 +18,5 @@
         "editor.quickSuggestions": false,
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
-    }
+    },
 }
