@@ -11,6 +11,10 @@ echo Done creating new virtualenv!
 shopt -s expand_aliases
 source .venv/bin/activate
 
+echo Now updating pip...
+python -m pip install -U pip
+echo Done updating pip!
+
 echo Now pip installing...
 pip install -r requirements.txt
 echo Done pip installing!

@@ -8,10 +8,11 @@
         "--ignore",
         "E70",
         "--max-line-length",
-        "120",
+        "160",
     ],
     "[python]": {
         "editor.formatOnSave": true,
+        "editor.tabSize": 4,
     },
     "[markdown]": {
         "editor.wordWrap": "on",
