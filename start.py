@@ -10,13 +10,15 @@ import sys
 
 class Game:
 
-    def __init__(self, episode_count=2000, eps=1.0, eps_min=1e-4):
+    def __init__(self, episode_count=2000, eps=1.0, eps_min=1e-4, lr: float = 1e-2, stdout_interval: int = 60):
         self.episode_count = episode_count
         self.eps = eps
         self.eps_min = eps_min
         self.eps_decay = (eps - eps_min) / episode_count
+        self.stdout_interval = stdout_interval
+        self.lr = lr
         # select stage
-        self.env = gym.make('ppaquette/SuperMarioBros-1-1-Tiles-v0')
+        self.env: ppaquette_gym_super_mario.SuperMarioBrosEnv = gym.make('ppaquette/SuperMarioBros-1-1-Tiles-v0')
 
     def weight_variable(self, shape):
         initial = tf.random.truncated_normal(shape, stddev=0.01)
@@ -92,7 +94,7 @@ class Game:
         y = tf.compat.v1.placeholder("float", [None, 1])
         readout_action = tf.reduce_sum(tf.multiply(readout, a), reduction_indices=1)
         cost = tf.reduce_mean(tf.square(y - readout_action))
-        train_step = tf.compat.v1.train.AdamOptimizer(1e-6).minimize(cost)
+        train_step = tf.compat.v1.train.AdamOptimizer(self.lr).minimize(cost)
 
         saver = tf.compat.v1.train.Saver()
         sess.run(tf.initialize_all_variables())
@@ -115,12 +117,14 @@ class Game:
             self.eps = max(self.eps - self.eps_decay, self.eps_min)
             while is_finished == False:
                 screen = np.reshape(self.env.tiles, (13, 16, 1))
-                readout_t = readout.eval(feed_dict={s: [screen]})[0]
+                readout_t: np.ndarray = readout.eval(feed_dict={s: [screen]})[0]
 
                 if np.random.random() < self.eps:
                     action_index = random.randint(0, len(action_list) - 1)
+                    is_random_action = True
                 else:
                     action_index = np.argmax(readout_t)
+                    is_random_action = False
 
                 # 画面のマリオに処理する
                 obs, reward, is_finished, info = self.env.step(action_list[action_index])
@@ -133,22 +137,22 @@ class Game:
                 # 報酬を与える
                 movement_reward = 0  # 移動報酬
                 if info['distance'] > distance:
-                    movement_reward = float(0.1)
+                    movement_reward = float(100)
                 elif info['distance'] < distance:
-                    movement_reward = float(-0.05)
+                    movement_reward = float(-100)
                     pass
                 distance = info['distance']
                 total_max_distance = distance if info['distance'] > total_max_distance else total_max_distance
 
                 score_reward = 0  # スコア報酬
                 if info['score'] > total_score:
-                    score_reward = float(0.1)
+                    score_reward = float(10)
                     total_score = info['score']
                     pass
 
                 time_reward = 0  # 残り時間報酬
                 if info['time'] < time_limit:
-                    time_reward = float(-0.05)
+                    time_reward = float(-1)
                     time_limit = info['time']
 
                 composited_reward = movement_reward + score_reward + time_reward
@@ -163,12 +167,13 @@ class Game:
                 })
 
                 # 情報の出力
-                if frame_count % 60 == 0:
-                    print("Episode: {0}, Actions: {1}, Rewards: {2}, readout_t: {3}".format(
-                        episode, action_index, rewards, readout_t)
-                    )
+                if frame_count % self.stdout_interval == 0:
+                    print("Episode: {0} / {1}, eps: {2}".format(episode, self.episode_count, self.eps))
+                    print("is_random_action: {0}".format(is_random_action))
+                    print("action_index: {0}".format(action_index))
+                    print("reward_predicts: {0}".format(readout_t))
+                    print("reward_predict: {0}, reward_truth: {1}".format(readout_t[action_index], composited_reward))
                     print("info: {}".format(info))
-                    print("eps: {0}".format(self.eps))
                     print("total_max_distance: {}\n".format(total_max_distance))
                     pass
 
@@ -181,6 +186,8 @@ class Game:
             # エピソードが終了する度に行う処理
             saver.save(sess, 'saved_networks/model-dqn', global_step=episode)
             frame_count = 0
+            pass
+        return
 
 
 if __name__ == '__main__':
