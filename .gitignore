@@ -4,6 +4,7 @@ __pycache__
 *.py~
 .DS_Store
 saved_networks/*
+pth_models/*
 
 .venv
 roms/
